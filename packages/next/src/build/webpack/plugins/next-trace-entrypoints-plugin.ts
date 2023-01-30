@@ -180,6 +180,12 @@ export class TraceEntryPointsPlugin implements webpack.WebpackPluginInstance {
         entryFilesMap.set(entrypoint, entryFiles)
       }
 
+      const ignores = [...TRACE_IGNORES, ...this.traceIgnores]
+
+      const ignoreFn = (path: string) => {
+        return isMatch(path, ignores, { contains: true, dot: true })
+      }
+
       // startTrace existed and callable
       if (this.turbotrace) {
         let binding = (await loadBindings()) as any
@@ -191,11 +197,7 @@ export class TraceEntryPointsPlugin implements webpack.WebpackPluginInstance {
           return
         }
       }
-      const ignores = [...TRACE_IGNORES, ...this.traceIgnores]
 
-      const ignoreFn = (path: string) => {
-        return isMatch(path, ignores, { contains: true, dot: true })
-      }
       const result = await nodeFileTrace([...chunksToTrace], {
         base: this.tracingRoot,
         processCwd: this.appDir,
@@ -814,7 +816,12 @@ export class TraceEntryPointsPlugin implements webpack.WebpackPluginInstance {
           ) {
             const maxFiles =
               this.turbotrace?.maxFiles ?? TURBO_TRACE_DEFAULT_MAX_FILES
-            let chunks = [...this.chunksToTrace]
+            const ignores = [...TRACE_IGNORES, ...this.traceIgnores]
+
+            const ignoreFn = (path: string) => {
+              return isMatch(path, ignores, { contains: true, dot: true })
+            }
+            let chunks = this.chunksToTrace.filter((chunk) => !ignoreFn(chunk))
             let restChunks =
               chunks.length > maxFiles ? chunks.splice(maxFiles) : []
             while (chunks.length) {
